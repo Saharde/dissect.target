@@ -268,7 +268,6 @@ def parse_start(line: str) -> datetime | None:
         Start: 2024/12/31 01:02:03.123 (UTC+2:00)
         Start: 2025/01/01 12:28:41.436 (UTC)
     """
-
     if match := RE_START.search(line):
         dt = match.groupdict()
 
