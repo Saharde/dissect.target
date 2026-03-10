@@ -154,6 +154,37 @@ class Environ:
     variable: str
     contents: str
 
+@dataclass
+class ProcMap:
+    start_addr: int
+    end_addr: int
+    perms: str
+    offset: int
+    dev: str
+    inode: int
+    pathname: str = ""
+
+    @classmethod
+    def from_line(cls, line: str) -> ProcMap:
+        contents = line.split(maxsplit=5)
+
+        if len(contents) < 5:
+            raise ValueError(f"Invalid memory map line: {line}")
+
+        addrs = contents[0].split("-", 1)
+
+        pathname = contents[5] if len(contents) == 6 else ""
+        
+        return cls(
+            start_addr=int(addrs[0], 16),
+            end_addr=int(addrs[1], 16),
+            perms=contents[1],
+            offset=int(contents[2], 16),
+            dev=contents[3],
+            inode=int(contents[4]),
+            pathname=pathname,
+        )
+
 
 class ProcessStateEnum(StrEnum):
     R = "Running"  # Running
@@ -488,6 +519,29 @@ class ProcProcess:
 
             yield Environ(variable, contents)
 
+    def _parse_maps(self) -> Iterator[ProcMap]:
+        """Internal function to parse entries in ``/proc/[pid]/maps``."""
+        if not (maps_path := self.get("maps")).exists():
+            return
+        
+        # entries in /proc/<pid>/maps are seperated with newline
+        for line in maps_path.read_text().split("\n"):
+            if line == "":
+                # Skip empty line
+                continue
+            try:
+                procmap = ProcMap.from_line(line)
+                    
+            except ValueError as e:
+                # Means that a line 
+                self.target.log.warning(f'Process {self.pid} - {e}')
+                continue
+            except Exception as e:
+                self.target.log.warning(f'Exception "{e}" cause by Memory Map of process {self.pid}: "{line}"')
+                continue
+
+            yield procmap
+
     @property
     def _boottime(self) -> int | None:
         """Returns the boot time of the system.
@@ -582,6 +636,10 @@ class ProcProcess:
     def environ(self) -> Iterator[Environ]:
         """Yields the content of the environ file associated with the process."""
         yield from self._parse_environ()
+
+    def maps(self) -> Iterator[ProcMap]:
+        """Yields the content of the maps file associated with the process."""
+        yield from self._parse_maps()
 
     @property
     def uptime(self) -> timedelta:
