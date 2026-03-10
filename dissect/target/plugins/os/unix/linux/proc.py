@@ -533,7 +533,7 @@ class ProcProcess:
                 procmap = ProcMap.from_line(line)
                     
             except ValueError as e:
-                # Means that a line is invalid
+                # Means that a line has less params than needed
                 self.target.log.warning(f'Process {self.pid} - {e}')
                 continue
             except Exception as e:
