@@ -52,4 +52,18 @@ class ProcmapsPlugin(Plugin):
             inode: The inode in the device (the inode of the file).
             pathname: The name of the mapped region (filepath/vdso/heap/stack..).
         """
-        pass
+        for process in self.target.proc.processes():
+            for map in process.maps():
+                yield ProcmapsRecord(
+                    ts=process.get("maps").stat().st_mtime,
+                    name=process.name,
+                    pid=process.pid,
+                    start_addr=map.start_addr,
+                    end_addr=map.end_addr,
+                    perms=map.perms,
+                    offset=map.offset,
+                    dev=map.dev,
+                    inode=map.inode,
+                    pathname=map.pathname,
+                    _target=self.target,
+                )
